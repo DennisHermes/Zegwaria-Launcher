@@ -10,7 +10,8 @@ const path                  = require('path')
 
 const ConfigManager            = require('./configmanager')
 
-const logger = LoggerUtil.getLogger('ProcessBuilder')
+const nodeConsole = require('console');
+const logger = new nodeConsole.Console(process.stdout, process.stderr);
 
 class ProcessBuilder {
 
@@ -40,7 +41,7 @@ class ProcessBuilder {
         process.throwDeprecation = true
         this.setupLiteLoader()
         logger.info('Using liteloader:', this.usingLiteLoader)
-        const modObj = this.resolveModConfiguration(ConfigManager.getModConfiguration(this.server.rawServer.id).mods, this.server.modules)
+        const modObj = this.resolveModConfiguration({}, this.server.modules)
         
         // Mod list below 1.13
         if(!mcVersionAtLeast('1.13', this.server.rawServer.minecraftVersion)){
@@ -57,9 +58,7 @@ class ProcessBuilder {
             //args = args.concat(this.constructModArguments(modObj.fMods))
             args = args.concat(this.constructModList(modObj.fMods))
         }
-
-        logger.info('Launch Arguments:', args)
-
+        
         const child = child_process.spawn(ConfigManager.getJavaExecutable(this.server.rawServer.id), args, {
             cwd: this.gameDir,
             detached: ConfigManager.getLaunchDetached()
@@ -306,12 +305,10 @@ class ProcessBuilder {
     }
 
     _processAutoConnectArg(args){
-        if(ConfigManager.getAutoConnect() && this.server.rawServer.autoconnect){
-            args.push('--server')
-            args.push(this.server.hostname)
-            args.push('--port')
-            args.push(this.server.port)
-        }
+        args.push('--server')
+        args.push(this.server.hostname)
+        args.push('--port')
+        args.push(this.server.port)
     }
 
     /**
@@ -401,9 +398,6 @@ class ProcessBuilder {
             args.push('-Xdock:name=HeliosLauncher')
             args.push('-Xdock:icon=' + path.join(__dirname, '..', 'images', 'minecraft.icns'))
         }
-        args.push('-Xmx' + ConfigManager.getMaxRAM(this.server.rawServer.id))
-        args.push('-Xms' + ConfigManager.getMinRAM(this.server.rawServer.id))
-        args = args.concat(ConfigManager.getJVMOptions(this.server.rawServer.id))
 
         // Main Java Class
         args.push(this.forgeData.mainClass)

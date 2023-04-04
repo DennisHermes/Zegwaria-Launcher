@@ -10,7 +10,8 @@ const { LoggerUtil } = require('helios-core')
 // eslint-disable-next-line no-unused-vars
 const { HeliosDistribution } = require('helios-core/common')
 
-const logger = LoggerUtil.getLogger('Preloader')
+const nodeConsole = require('console');
+const logger = new nodeConsole.Console(process.stdout, process.stderr);
 
 logger.info('Loading..')
 

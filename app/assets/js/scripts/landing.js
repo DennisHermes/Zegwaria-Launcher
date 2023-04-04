@@ -5,6 +5,7 @@
 const cp                      = require('child_process')
 const crypto                  = require('crypto')
 const { URL }                 = require('url')
+
 const {
     MojangRestAPI,
     getServerStatus
@@ -32,6 +33,7 @@ const {
 // Internal Requirements
 const DiscordWrapper          = require('./assets/js/discordwrapper')
 const ProcessBuilder          = require('./assets/js/processbuilder')
+const fs                      = require('fs-extra')
 
 // Launch Elements
 const launch_content          = document.getElementById('launch_content')
@@ -42,7 +44,9 @@ const launch_details_text     = document.getElementById('launch_details_text')
 const server_selection_button = document.getElementById('server_selection_button')
 const user_text               = document.getElementById('user_text')
 
-const loggerLanding = LoggerUtil.getLogger('Landing')
+const nodeConsole = require('console');
+const loggerLanding = new nodeConsole.Console(process.stdout, process.stderr);
+loggerLanding.log('Hello World!');
 
 /* Launch Progress Wrapper Functions */
 
@@ -66,7 +70,7 @@ function toggleLaunchArea(loading){
  * 
  * @param {string} details The new text for the loading details.
  */
-function setLaunchDetails(details){
+function setLaunchDetails(details) {
     launch_details_text.innerHTML = details
 }
 
@@ -104,8 +108,12 @@ function setLaunchEnabled(val){
 document.getElementById('launch_button').addEventListener('click', async e => {
     loggerLanding.info('Launching game..')
     try {
+
+        ConfigManager.setSelectedServer('ZEGWARIA-1.19.3')
+
         const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
         const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
+
         if(jExe == null){
             await asyncSystemScan(server.effectiveJavaOptions)
         } else {
@@ -116,7 +124,6 @@ document.getElementById('launch_button').addEventListener('click', async e => {
 
             const details = await validateSelectedJvm(ensureJavaDirIsRoot(jExe), server.effectiveJavaOptions.supported)
             if(details != null){
-                loggerLanding.info('Jvm Details', details)
                 await dlAsync()
 
             } else {
@@ -163,25 +170,19 @@ function updateSelectedServer(serv){
     if(getCurrentView() === VIEWS.settings){
         fullSettingsSave()
     }
-    ConfigManager.setSelectedServer(serv != null ? serv.rawServer.id : null)
     ConfigManager.save()
-    server_selection_button.innerHTML = '\u2022 ' + (serv != null ? serv.rawServer.name : 'No Server Selected')
+    server_selection_button.innerHTML = 'Minecraft 1.19.3'
     if(getCurrentView() === VIEWS.settings){
         animateSettingsTabRefresh()
     }
     setLaunchEnabled(serv != null)
 }
+
 // Real text is set in uibinder.js on distributionIndexDone.
 server_selection_button.innerHTML = '\u2022 Loading..'
-server_selection_button.onclick = async e => {
-    e.target.blur()
-    await toggleServerSelection(true)
-}
 
 // Update Mojang Status Color
 const refreshMojangStatuses = async function(){
-    loggerLanding.info('Refreshing Mojang Statuses..')
-
     let status = 'grey'
     let tooltipEssentialHTML = ''
     let tooltipNonEssentialHTML = ''
@@ -304,7 +305,7 @@ function showLaunchFailure(title, desc){
  */
 async function asyncSystemScan(effectiveJavaOptions, launchAfter = true){
 
-    setLaunchDetails('Checking system info..')
+    setLaunchDetails('Vérification des informations sur le système...')
     toggleLaunchArea(true)
     setLaunchPercentage(0, 100)
 
@@ -323,14 +324,14 @@ async function asyncSystemScan(effectiveJavaOptions, launchAfter = true){
             'Install Manually'
         )
         setOverlayHandler(() => {
-            setLaunchDetails('Preparing Java Download..')
+            setLaunchDetails('Préparer le téléchargement de Java...')
             toggleOverlay(false)
             
             try {
                 downloadJava(effectiveJavaOptions, launchAfter)
             } catch(err) {
-                loggerLanding.error('Unhandled error in Java Download', err)
-                showLaunchFailure('Error During Java Download', 'See console (CTRL + Shift + i) for more details.')
+                loggerLanding.error('Erreur non gérée en Java Télécharger', err)
+                showLaunchFailure('Erreur lors du téléchargement de Java', 'See console (CTRL + Shift + i) for more details.')
             }
         })
         setDismissHandler(() => {
@@ -409,7 +410,7 @@ async function downloadJava(effectiveJavaOptions, launchAfter = true) {
     remote.getCurrentWindow().setProgressBar(2)
 
     // Wait for extration to complete.
-    const eLStr = 'Extracting Java'
+    const eLStr = 'Extraction de Java'
     let dotStr = ''
     setLaunchDetails(eLStr)
     const extractListener = setInterval(() => {
@@ -431,7 +432,7 @@ async function downloadJava(effectiveJavaOptions, launchAfter = true) {
     ConfigManager.save()
 
     clearInterval(extractListener)
-    setLaunchDetails('Java Installed!')
+    setLaunchDetails('Java installé!')
 
     // TODO Callback hell
     // Refactor the launch functions
@@ -456,7 +457,7 @@ async function dlAsync(login = true) {
 
     const loggerLaunchSuite = LoggerUtil.getLogger('LaunchSuite')
 
-    setLaunchDetails('Loading server information..')
+    setLaunchDetails('Chargement des informations sur le serveur...')
 
     let distro
 
@@ -473,12 +474,12 @@ async function dlAsync(login = true) {
 
     if(login) {
         if(ConfigManager.getSelectedAccount() == null){
-            loggerLanding.error('You must be logged into an account.')
+            loggerLanding.error('Vous devez être connecté à un compte.')
             return
         }
     }
 
-    setLaunchDetails('Please wait..')
+    setLaunchDetails('Veuillez patienter...')
     toggleLaunchArea(true)
     setLaunchPercentage(0, 100)
 
@@ -504,7 +505,7 @@ async function dlAsync(login = true) {
     })
 
     loggerLaunchSuite.info('Validating files.')
-    setLaunchDetails('Validating file integrity..')
+    setLaunchDetails("Validation de l'intégrité des fichiers...")
     let invalidFileCount = 0
     try {
         invalidFileCount = await fullRepairModule.verifyFiles(percent => {
@@ -520,7 +521,7 @@ async function dlAsync(login = true) {
 
     if(invalidFileCount > 0) {
         loggerLaunchSuite.info('Downloading files.')
-        setLaunchDetails('Downloading files..')
+        setLaunchDetails('Téléchargement de fichiers...')
         setLaunchPercentage(0)
         try {
             await fullRepairModule.download(percent => {
@@ -541,7 +542,7 @@ async function dlAsync(login = true) {
 
     fullRepairModule.destroyReceiver()
 
-    setLaunchDetails('Preparing to launch..')
+    setLaunchDetails('Préparer le lancement...')
 
     const mojangIndexProcessor = new MojangIndexProcessor(
         ConfigManager.getCommonDirectory(),
@@ -559,7 +560,7 @@ async function dlAsync(login = true) {
         const authUser = ConfigManager.getSelectedAccount()
         loggerLaunchSuite.info(`Sending selected account (${authUser.displayName}) to ProcessBuilder.`)
         let pb = new ProcessBuilder(serv, versionData, forgeData, authUser, remote.app.getVersion())
-        setLaunchDetails('Launching game..')
+        setLaunchDetails('Lancement du jeu...')
 
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
@@ -616,23 +617,30 @@ async function dlAsync(login = true) {
             proc.stdout.on('data', tempListener)
             proc.stderr.on('data', gameErrorListener)
 
-            setLaunchDetails('Done. Enjoy the server!')
+            var files = fs.readdirSync(__dirname + '/mods/');
 
-            // Init Discord Hook
-            if(distro.rawDistribution.discord != null && serv.rawServerdiscord != null){
-                DiscordWrapper.initRPC(distro.rawDistribution.discord, serv.rawServer.discord)
-                hasRPC = true
-                proc.on('close', (code, signal) => {
-                    loggerLaunchSuite.info('Shutting down Discord Rich Presence..')
-                    DiscordWrapper.shutdownRPC()
-                    hasRPC = false
-                    proc = null
-                })
+            setLaunchDetails("l'Installation de mods.")
+
+            const sysRoot = process.env.APPDATA || (process.platform == 'darwin' ? process.env.HOME + '/Library/Application Support' : process.env.HOME)
+            const dataPath = path.join(sysRoot, '.ZEGWARIA/instances/ZEGWARIA-1.19.3/mods/')
+
+            loggerLanding.log("path: " + dataPath);
+            const fse = require('fs-extra');
+            if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath);
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    fse.copySync(__dirname + '/mods/' + files[i], dataPath + files[i], { overwrite: true })
+                    loggerLanding.log('success: ' + files[i])
+                } catch (err) {
+                    loggerLanding.error(err)
+                }
             }
+            
+            setLaunchDetails('Terminé.')
 
         } catch(err) {
 
-            loggerLaunchSuite.error('Error during launch', err)
+            loggerLanding.error('Error during launch', err)
             showLaunchFailure('Error During Launch', 'Please check the console (CTRL + Shift + i) for more details.')
 
         }
